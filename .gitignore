@@ -70,3 +70,6 @@ benchmarks/results/
 
 # Claude Code session files
 .claude/
+
+# Local learning journal
+LEARNING.md

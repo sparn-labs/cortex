@@ -9,7 +9,7 @@
  * CRITICAL: Always exits 0 (never disrupts Claude Code).
  */
 
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { estimateTokens } from '../utils/tokenizer.js';
@@ -19,6 +19,49 @@ const LOG_FILE = process.env['CORTEX_LOG_FILE'] || join(homedir(), '.cortex-hook
 
 // Only add summaries for outputs over this many estimated tokens
 const SUMMARY_THRESHOLD = 3000;
+
+// Session stats file for tracking running totals
+const SESSION_STATS_FILE = join(homedir(), '.cortex', 'session-stats.json');
+
+interface SessionStats {
+  sessionId: string;
+  outputsCompressed: number;
+  totalTokensBefore: number;
+  totalTokensAfter: number;
+  lastUpdated: number;
+}
+
+function loadSessionStats(sessionId: string): SessionStats {
+  try {
+    if (existsSync(SESSION_STATS_FILE)) {
+      const data = JSON.parse(readFileSync(SESSION_STATS_FILE, 'utf-8')) as SessionStats;
+      if (data.sessionId === sessionId) {
+        return data;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return {
+    sessionId,
+    outputsCompressed: 0,
+    totalTokensBefore: 0,
+    totalTokensAfter: 0,
+    lastUpdated: Date.now(),
+  };
+}
+
+function saveSessionStats(stats: SessionStats): void {
+  try {
+    const dir = join(homedir(), '.cortex');
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(SESSION_STATS_FILE, JSON.stringify(stats), 'utf-8');
+  } catch {
+    // ignore
+  }
+}
 
 function log(message: string): void {
   if (DEBUG) {
@@ -45,7 +88,7 @@ function extractText(response: unknown): string {
 }
 
 /**
- * Summarize large bash output
+ * Summarize large bash output with content-aware strategies
  */
 function summarizeBash(text: string, command: string): string {
   const lines = text.split('\n');
@@ -58,6 +101,59 @@ function summarizeBash(text: string, command: string): string {
     if (resultLines.length > 0) {
       return `[cortex] Test output summary (${lines.length} lines):\n${resultLines.slice(0, 15).join('\n')}`;
     }
+  }
+
+  // TypeScript errors: group by error code
+  if (/TS\d{4,5}:/.test(text)) {
+    const errorCodes = new Map<string, number>();
+    for (const line of lines) {
+      const match = line.match(/TS(\d{4,5}):/);
+      if (match?.[1]) {
+        const code = `TS${match[1]}`;
+        errorCodes.set(code, (errorCodes.get(code) || 0) + 1);
+      }
+    }
+    const totalErrors = Array.from(errorCodes.values()).reduce((a, b) => a + b, 0);
+    const codesSummary = Array.from(errorCodes.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([code, count]) => `${code}(${count})`)
+      .join(', ');
+    return `[cortex] TypeScript: ${totalErrors} errors across ${errorCodes.size} codes: ${codesSummary}`;
+  }
+
+  // Lint output: aggregate by rule
+  if (/\d+ (problem|error|warning|issue)/i.test(text) || /lint/i.test(command)) {
+    const rules = new Map<string, number>();
+    for (const line of lines) {
+      // eslint/biome style: rule-name at end
+      const match = line.match(/\s([a-z][\w/.-]+)\s*$/);
+      if (match?.[1]?.includes('/')) {
+        rules.set(match[1], (rules.get(match[1]) || 0) + 1);
+      }
+    }
+    if (rules.size > 0) {
+      const rulesSummary = Array.from(rules.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([rule, count]) => `${rule}(${count})`)
+        .join(', ');
+      return `[cortex] Lint: ${lines.length} lines, ${rules.size} rules: ${rulesSummary}`;
+    }
+  }
+
+  // npm/yarn output: summarize package operations
+  if (/npm\s+(warn|info|notice)|added\s+\d+\s+packages/i.test(text)) {
+    const added = text.match(/added\s+(\d+)\s+packages?/i);
+    const removed = text.match(/removed\s+(\d+)\s+packages?/i);
+    const updated = text.match(/changed\s+(\d+)\s+packages?/i);
+    const audit = text.match(/(\d+)\s+vulnerabilit/i);
+    const parts = ['[cortex] npm:'];
+    if (added) parts.push(`${added[1]} added`);
+    if (removed) parts.push(`${removed[1]} removed`);
+    if (updated) parts.push(`${updated[1]} changed`);
+    if (audit) parts.push(`${audit[1]} vulnerabilities`);
+    if (parts.length > 1) return parts.join(' ');
   }
 
   // Check for build errors
@@ -76,6 +172,21 @@ function summarizeBash(text: string, command: string): string {
       if (match?.[2]) files.push(match[2]);
     }
     return `[cortex] Git diff: ${files.length} files changed: ${files.join(', ')}`;
+  }
+
+  // JSON responses: show structure
+  const trimmed = text.trim();
+  if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && trimmed.length > 3000) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return `[cortex] JSON array: ${parsed.length} items`;
+      }
+      const keys = Object.keys(parsed);
+      return `[cortex] JSON object: ${keys.length} keys: ${keys.slice(0, 10).join(', ')}`;
+    } catch {
+      // Not valid JSON, fall through
+    }
   }
 
   // Generic: show line count and first/last few lines
@@ -144,6 +255,28 @@ function summarizeSearch(text: string, pattern: string): string {
   return `[cortex] Search for "${pattern}": ${lines.length} result lines`;
 }
 
+/**
+ * Summarize glob results by grouping by directory
+ */
+function summarizeGlob(text: string): string {
+  const lines = text.split('\n').filter((l) => l.trim().length > 0);
+  const dirMap = new Map<string, number>();
+
+  for (const line of lines) {
+    const parts = line.trim().split('/');
+    const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
+    dirMap.set(dir, (dirMap.get(dir) || 0) + 1);
+  }
+
+  const dirSummary = Array.from(dirMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([dir, count]) => `${dir}/ (${count})`)
+    .join(', ');
+
+  return `[cortex] Glob: ${lines.length} files across ${dirMap.size} directories. Top: ${dirSummary}`;
+}
+
 async function main(): Promise<void> {
   try {
     const chunks: Buffer[] = [];
@@ -191,6 +324,10 @@ async function main(): Promise<void> {
         summary = summarizeSearch(text, pattern);
         break;
       }
+      case 'Glob': {
+        summary = summarizeGlob(text);
+        break;
+      }
       default: {
         const lines = text.split('\n');
         summary = `[cortex] ${toolName} output: ${lines.length} lines, ~${tokens} tokens`;
@@ -199,11 +336,28 @@ async function main(): Promise<void> {
     }
 
     if (summary) {
+      // Estimate compressed token count from the summary
+      const summaryTokens = estimateTokens(summary);
+      const reduction = tokens > 0 ? ((tokens - summaryTokens) / tokens) * 100 : 0;
+
+      // Add compression metric line
+      const compressionLine = `[cortex] ${toolName} output: ${tokens}→${summaryTokens} tokens (${reduction.toFixed(0)}% reduction)`;
+
+      // Track session stats
+      const sessionId = input.session_id || 'unknown';
+      const stats = loadSessionStats(sessionId);
+      stats.outputsCompressed += 1;
+      stats.totalTokensBefore += tokens;
+      stats.totalTokensAfter += summaryTokens;
+      stats.lastUpdated = Date.now();
+      saveSessionStats(stats);
+
       log(`Summary: ${summary.substring(0, 100)}`);
+      const fullContext = `${compressionLine}\n${summary}`;
       const output = JSON.stringify({
         hookSpecificOutput: {
           hookEventName: 'PostToolUse',
-          additionalContext: summary,
+          additionalContext: fullContext,
         },
       });
       process.stdout.write(output);

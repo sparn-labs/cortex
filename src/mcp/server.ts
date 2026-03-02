@@ -12,6 +12,7 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { createClaudeCodeAdapter } from '../adapters/claude-code.js';
 import { createGenericAdapter } from '../adapters/generic.js';
 import type { KVMemory } from '../core/kv-memory.js';
 import { createSleepCompressor } from '../core/sleep-compressor.js';
@@ -91,7 +92,10 @@ function registerOptimizeTool(server: McpServer, memory: KVMemory, config: Corte
           ? { ...config, pruning: { ...config.pruning, threshold } }
           : config;
 
-        const adapter = createGenericAdapter(memory, effectiveConfig);
+        const adapter =
+          effectiveConfig.agent === 'claude-code'
+            ? createClaudeCodeAdapter(memory, effectiveConfig)
+            : createGenericAdapter(memory, effectiveConfig);
         const result = await adapter.optimize(context, {
           dryRun,
           verbose,

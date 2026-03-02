@@ -3,12 +3,14 @@
  * Creates .cortex/ directory with config and database.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { access, mkdir, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dump as dumpYAML } from 'js-yaml';
 import { createKVMemory } from '../../core/kv-memory.js';
+import type { AgentType } from '../../types/config.js';
 import { DEFAULT_CONFIG } from '../../types/config.js';
 import { getBanner } from '../ui/banner.js';
 import { brainPink, dim, neuralCyan } from '../ui/colors.js';
@@ -27,6 +29,24 @@ function getVersion(): string {
 }
 
 const VERSION = getVersion();
+
+/**
+ * Detect if Claude Code is installed by checking for ~/.claude/ directory.
+ */
+export function detectClaudeCode(): boolean {
+  try {
+    return existsSync(join(homedir(), '.claude'));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Auto-detect the best agent type based on environment.
+ */
+export function detectAgentType(): AgentType {
+  return detectClaudeCode() ? 'claude-code' : 'generic';
+}
 
 /**
  * Options for init command.
@@ -81,14 +101,27 @@ export async function initCommand(options: InitOptions = {}): Promise<InitResult
   // Create .cortex/ directory
   await mkdir(cortexDir, { recursive: true });
 
-  // Create config.yaml with defaults
-  const configYAML = dumpYAML(DEFAULT_CONFIG, {
+  // Auto-detect agent type
+  const detectedAgent = detectAgentType();
+  const config = { ...DEFAULT_CONFIG, agent: detectedAgent };
+
+  // Create config.yaml with defaults and inline documentation
+  const configYAML = dumpYAML(config, {
     indent: 2,
     lineWidth: 100,
   });
 
   const configWithComments = `# Cortex Configuration
 # See https://github.com/sparn-labs/cortex for documentation
+#
+# agent: '${detectedAgent}' was auto-detected.
+#   - 'claude-code': Optimized for Claude Code (conversation boost, BTSP patterns)
+#   - 'generic': Agent-agnostic optimization
+#
+# pruning.threshold: Top % entries to keep (1-100, lower = more aggressive)
+# decay.defaultTTL: Hours before entries start decaying (default: 24)
+# realtime.tokenBudget: Target token count after optimization (default: 40000)
+# realtime.autoOptimizeThreshold: Auto-optimize when context exceeds this (default: 60000)
 
 ${configYAML}`;
 

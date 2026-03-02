@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Command } from 'commander';
+import { Command, Help } from 'commander';
 import { load as loadYAML } from 'js-yaml';
 import { playCommand, playComplete, playEnd, playStartup } from '../utils/audio.js';
 import { setPreciseTokenCounting } from '../utils/tokenizer.js';
@@ -122,12 +122,64 @@ process.on('uncaughtException', (error) => {
 
 const program = new Command();
 
+// Essential commands shown in default help
+const ESSENTIAL_COMMANDS = new Set(['setup', 'status', 'optimize', 'stats', 'hooks']);
+
 program
   .name('cortex')
   .description('Context optimization for AI coding agents')
   .version(VERSION, '-v, --version', 'Output the current version')
   .helpOption('-h, --help', 'Display help for command')
+  .option('--all', 'Show all commands in help')
   .enablePositionalOptions();
+
+// Save Commander's default help formatter before overriding
+const defaultFormatHelp = Help.prototype.formatHelp;
+
+// Custom help: show only essential commands by default
+program.configureHelp({
+  formatHelp(cmd, helper) {
+    const showAll = process.argv.includes('--all');
+    if (showAll || cmd.name() !== 'cortex') {
+      // Use Commander's built-in formatter (avoid recursion)
+      return defaultFormatHelp.call(helper, cmd, helper);
+    }
+
+    // Build custom help with command tiers
+    const lines: string[] = [];
+    lines.push('');
+    lines.push(`Usage: ${cmd.name()} [command] [options]`);
+    lines.push('');
+    lines.push('Context optimization for AI coding agents');
+    lines.push('');
+    lines.push('Essential Commands:');
+
+    const cmds = cmd.commands;
+    const essential = cmds.filter((c) => ESSENTIAL_COMMANDS.has(c.name()));
+    const advanced = cmds.filter((c) => !ESSENTIAL_COMMANDS.has(c.name()));
+
+    const padWidth = Math.max(...essential.map((c) => c.name().length)) + 2;
+    for (const c of essential) {
+      lines.push(`  ${c.name().padEnd(padWidth)} ${c.description()}`);
+    }
+
+    lines.push('');
+    lines.push(`Advanced Commands (${advanced.length} more — use --all to see all):`);
+    lines.push(`  init, optimize, relay, consolidate, config, daemon,`);
+    lines.push(`  interactive, graph, search, plan, exec, verify, docs, debt, dashboard`);
+    lines.push('');
+    lines.push('Options:');
+    lines.push('  -v, --version  Output the current version');
+    lines.push('  -h, --help     Display help for command');
+    lines.push('  --all          Show all commands in help');
+    lines.push('');
+    lines.push('Getting Started:');
+    lines.push('  $ cortex setup     # One-command setup (recommended)');
+    lines.push('  $ cortex status    # Check project status');
+    lines.push('');
+    return lines.join('\n');
+  },
+});
 
 playStartup();
 
@@ -184,6 +236,84 @@ Next Steps:
     } catch (error) {
       spinner.fail(errorRed('Initialization failed'));
       console.error('Error:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+// Setup command (one-command onboarding)
+program
+  .command('setup')
+  .description('One-command setup: init + hooks + daemon + docs')
+  .option('-f, --force', 'Force overwrite if .cortex/ already exists')
+  .option('--skip-hooks', 'Skip hook installation')
+  .option('--skip-daemon', 'Skip daemon start')
+  .option('--skip-docs', 'Skip CLAUDE.md generation')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ cortex setup                   # Full automatic setup
+  $ cortex setup --force           # Overwrite existing .cortex/
+  $ cortex setup --skip-daemon     # Setup without starting daemon
+
+What It Does:
+  1. Detects Claude Code environment
+  2. Creates .cortex/ with auto-configured settings
+  3. Installs hooks (globally for Claude Code)
+  4. Starts the optimization daemon
+  5. Generates CLAUDE.md project documentation
+
+This is the recommended way to get started with Cortex.
+`,
+  )
+  .action(async (options) => {
+    const { setupCommand } = await import('./commands/setup.js');
+    const { neuralCyan, brainPink, dim, errorRed, synapseViolet } = await import('./ui/colors.js');
+    const { createInitSpinner } = await import('./ui/progress.js');
+    const { getBanner } = await import('./ui/banner.js');
+
+    console.log(getBanner(VERSION));
+    const spinner = createInitSpinner('Setting up Cortex...');
+    spinner.start();
+
+    try {
+      spinner.text = 'Detecting environment...';
+      const result = await setupCommand({
+        force: options.force,
+        skipHooks: options.skipHooks,
+        skipDaemon: options.skipDaemon,
+        skipDocs: options.skipDocs,
+      });
+
+      spinner.succeed(neuralCyan(`Setup complete in ${result.durationMs}ms!`));
+
+      // Display results
+      console.log(`\n${brainPink('━'.repeat(60))}`);
+      console.log(brainPink('  Cortex Setup Summary'));
+      console.log(brainPink('━'.repeat(60)));
+
+      for (const step of result.steps) {
+        const icon = step.status === 'success' ? '✓' : step.status === 'skipped' ? '○' : '✗';
+        const color =
+          step.status === 'success' ? neuralCyan : step.status === 'failed' ? errorRed : dim;
+        console.log(`  ${color(`${icon} ${step.message}`)}`);
+      }
+
+      console.log(`\n  ${neuralCyan('Config:')}   ${dim(result.configPath)}`);
+      console.log(`  ${neuralCyan('Database:')} ${dim(result.dbPath)}`);
+
+      const failed = result.steps.filter((s) => s.status === 'failed');
+      if (failed.length > 0) {
+        console.log(
+          synapseViolet(`\n  ${failed.length} step(s) had issues — Cortex will still work.`),
+        );
+      }
+
+      console.log(`\n  ${brainPink('→')} Cortex is now active. Start a Claude Code session!`);
+      console.log(`${brainPink('━'.repeat(60))}\n`);
+    } catch (error) {
+      spinner.fail(errorRed('Setup failed'));
+      console.error(errorRed('Error:'), error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
   });
@@ -1170,6 +1300,20 @@ program.on('option:version', () => {
   console.log(getBanner(VERSION));
   process.exit(0);
 });
+
+// Default command: run `status` when no args provided
+const args = process.argv.slice(2).filter((a) => !a.startsWith('-'));
+if (
+  args.length === 0 &&
+  !process.argv.includes('-h') &&
+  !process.argv.includes('--help') &&
+  !process.argv.includes('-v') &&
+  !process.argv.includes('--version') &&
+  !process.argv.includes('--all')
+) {
+  // Insert 'status' as the default command
+  process.argv.splice(2, 0, 'status');
+}
 
 // Parse arguments
 program.parse();
