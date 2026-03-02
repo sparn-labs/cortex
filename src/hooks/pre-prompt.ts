@@ -312,11 +312,38 @@ async function main(): Promise<void> {
         if (sessionData.sessionId === sessionId && sessionData.outputsCompressed > 0) {
           const saved = sessionData.totalTokensBefore - sessionData.totalTokensAfter;
           const savedStr = saved >= 1000 ? `${(saved / 1000).toFixed(1)}K` : String(saved);
+          const avgReduction =
+            sessionData.totalTokensBefore > 0
+              ? Math.round(
+                  ((sessionData.totalTokensBefore - sessionData.totalTokensAfter) /
+                    sessionData.totalTokensBefore) *
+                    100,
+                )
+              : 0;
           const transcriptSize =
             transcriptPath && existsSync(transcriptPath)
               ? `${(statSync(transcriptPath).size / (1024 * 1024)).toFixed(1)}MB`
               : 'N/A';
-          statusLine = `[cortex] Session: ${transcriptSize} | ${sessionData.outputsCompressed} outputs compressed | ~${savedStr} tokens saved`;
+
+          // Per-tool breakdown if available
+          let toolBreakdown = '';
+          if (sessionData.perTool && typeof sessionData.perTool === 'object') {
+            const toolParts: string[] = [];
+            for (const [tool, data] of Object.entries(sessionData.perTool)) {
+              const td = data as { compressed: number; tokensBefore: number; tokensAfter: number };
+              if (td.compressed > 0) {
+                const toolSaved = td.tokensBefore - td.tokensAfter;
+                const toolSavedStr =
+                  toolSaved >= 1000 ? `${(toolSaved / 1000).toFixed(0)}K` : String(toolSaved);
+                toolParts.push(`${tool}:${td.compressed}/${toolSavedStr}`);
+              }
+            }
+            if (toolParts.length > 0) {
+              toolBreakdown = ` | ${toolParts.join(' ')}`;
+            }
+          }
+
+          statusLine = `[cortex] Session: ${transcriptSize} | ${sessionData.outputsCompressed} compressed (${avgReduction}% avg) | ~${savedStr} saved${toolBreakdown}`;
         }
       }
     } catch {

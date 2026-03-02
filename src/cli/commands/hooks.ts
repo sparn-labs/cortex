@@ -34,7 +34,7 @@ const POST_TOOL_EVENT = 'PostToolUse';
 const STOP_DOCS_EVENT = 'Stop';
 
 // Matcher for which tools trigger the post-tool hook
-const POST_TOOL_MATCHER = 'Bash|Read|Grep|Glob';
+const POST_TOOL_MATCHER = 'Bash|Read|Grep|Glob|WebFetch|WebSearch';
 
 // Marker to identify cortex-managed hooks
 const CORTEX_MARKER = 'cortex';

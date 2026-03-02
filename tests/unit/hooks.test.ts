@@ -63,7 +63,7 @@ describe('Hooks Command', () => {
             ],
             PostToolUse: [
               {
-                matcher: 'Bash|Read|Grep|Glob',
+                matcher: 'Bash|Read|Grep|Glob|WebFetch|WebSearch',
                 hooks: [
                   {
                     type: 'command',
@@ -106,7 +106,7 @@ describe('Hooks Command', () => {
 
       // Validate PostToolUse hook format
       const postTool = settings.hooks.PostToolUse[0];
-      expect(postTool.matcher).toBe('Bash|Read|Grep|Glob');
+      expect(postTool.matcher).toBe('Bash|Read|Grep|Glob|WebFetch|WebSearch');
       expect(postTool.hooks).toBeInstanceOf(Array);
       expect(postTool.hooks[0].type).toBe('command');
       expect(postTool.hooks[0].command).toContain('post-tool-result');
@@ -171,7 +171,7 @@ describe('Hooks Command', () => {
           hooks: {
             PostToolUse: [
               {
-                matcher: 'Bash|Read|Grep|Glob',
+                matcher: 'Bash|Read|Grep|Glob|WebFetch|WebSearch',
                 hooks: [
                   {
                     type: 'command',
@@ -240,7 +240,7 @@ describe('Hooks Command', () => {
           hooks: {
             PostToolUse: [
               {
-                matcher: 'Bash|Read|Grep|Glob',
+                matcher: 'Bash|Read|Grep|Glob|WebFetch|WebSearch',
                 hooks: [
                   {
                     type: 'command',
@@ -358,7 +358,7 @@ describe('Settings JSON Format Validation', () => {
         ],
         PostToolUse: [
           {
-            matcher: 'Bash|Read|Grep|Glob',
+            matcher: 'Bash|Read|Grep|Glob|WebFetch|WebSearch',
             hooks: [
               {
                 type: 'command' as const,
