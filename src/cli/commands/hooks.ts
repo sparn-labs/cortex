@@ -114,11 +114,11 @@ function addHookEntry(
   matcher?: string,
 ): void {
   if (!hooks[event]) hooks[event] = [];
-  const entry: Record<string, unknown> = {
+  const entry: HookMatcherGroup = {
     hooks: [{ type: 'command', command: `node "${scriptPath.replace(/\\/g, '/')}"`, timeout: 10 }],
+    ...(matcher ? { matcher } : {}),
   };
-  if (matcher) entry.matcher = matcher;
-  hooks[event].push(entry as HooksConfig[string][number]);
+  hooks[event].push(entry);
 }
 
 function installHooks(
