@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-03-02 (@sparn/cortex)
+
+### New Features
+
+#### Codebase Analyzer Enhancements
+- **`.cortexignore` file support**: Glob-based file exclusion with optional rule-specific suppression
+  - Pattern syntax: `src/legacy/**` (exclude all rules) or `src/legacy/** QUAL-001,QUAL-003` (specific rules only)
+  - Merges with config `excludePatterns`
+  - Custom ReDoS-safe glob-to-regex engine (no external dependency)
+
+- **Enhanced JSON output for AI agents**: Machine-actionable metadata on every finding
+  - `fixable` (boolean) and `fixType` (9 categories: `extract-function`, `replace-pattern`, `add-constraint`, `add-index`, `add-test`, `add-docs`, `remove-code`, `refactor`, `config-change`)
+  - `ActionPlanItem` with `pointsRecoverable` and `effort` heuristic
+  - All 6 analyzers annotated (58 finding types total)
+
+- **Score history + trend tracking** (`--history`): SQLite-backed analysis history
+  - Auto-records every analysis run to `.cortex/memory.db`
+  - Trend delta display: `(+4.7 since last run)` with color coding
+  - Auto-prunes to 500 entries
+
+- **Changed-files mode** (`--changed [ref]`): Analyze only files changed since a git ref
+  - Defaults to `HEAD~1`, supports any git ref
+  - Merges staged + unstaged changes
+  - Uses `execFileSync` for command injection prevention
+
+- **Per-file scoring** (`--file <path>`): Analyze a single file
+  - Path traversal prevention via `resolve()` + prefix check
+  - Simplified output: `Health: 85/100 (A++) | Findings: 3`
+
+- **Baseline/delta mode** (`--save-baseline`, `--diff`): Track finding changes over time
+  - SHA-256 fingerprinting (ruleId + filePath + title) — stable across line shifts
+  - Shows new findings, fixed findings, and unchanged count
+  - Score comparison with delta
+
+### Security Fixes
+- **Command injection prevention**: `--changed` ref argument passed via `execFileSync` array (not shell interpolation)
+- **ReDoS prevention**: `globToRegex()` uses `(?:[^/]+/)*` instead of catastrophic `(?:.+/)?`
+- **Path traversal prevention**: `--file` validates resolved path stays within project root
+- **SQLite connection leak fix**: `try/catch` around table init with `db.close()` on failure
+- **Use-after-close guard**: `ensureOpen()` check on all history operations
+- **Safe JSON.parse**: Corrupt DB columns default to `{}` instead of crashing
+
+### Testing
+- **582 tests passing** across 48 test files (up from 533)
+- New test suites: `cortexignore.test.ts` (11), `analysis-history.test.ts` (11), `baseline.test.ts` (8), `context-builder.test.ts` (10), report-generator additions (5)
+
+### Technical
+- 4 new modules, 4 new test files, 7 modified source files
+- All findings in all 6 analyzers annotated with `fixable`/`fixType`
+- New exports: `createAnalysisHistory`, `computeTrend`, `createCortexIgnore`, `parseCortexIgnore`, `fingerprint`, `saveBaseline`, `loadBaseline`, `diffFindings`, `buildChangedFilesContext`, `buildSingleFileContext`, `buildActionPlanItems`
+
+---
+
 ## [1.4.0] - 2026-02-26
 
 ### New Features

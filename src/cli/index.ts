@@ -940,6 +940,133 @@ and configuring Cortex without memorizing CLI flags.
     }
   });
 
+// Analyze command
+program
+  .command('analyze [path]')
+  .description('Multi-dimensional codebase analysis with scoring')
+  .option('--focus <categories>', 'Analyze specific categories (comma-separated)')
+  .option('--json', 'Output structured JSON')
+  .option('-o, --output <file>', 'Write full Markdown report to file')
+  .option('--verbose', 'Show all findings')
+  .option('--changed [ref]', 'Only files changed since ref (default: HEAD~1)')
+  .option('--file <path>', 'Analyze a single file')
+  .option('--history', 'Show score history')
+  .option('--save-baseline', 'Save current results as baseline')
+  .option('--diff', 'Compare against saved baseline')
+  .action(async (path, options) => {
+    const { analyzeCommand } = await import('./commands/analyze.js');
+    const { neuralCyan, synapseViolet, errorRed, dim, bold } = await import('./ui/colors.js');
+    const { writeFileSync } = await import('node:fs');
+
+    try {
+      const result = await analyzeCommand({
+        path,
+        focus: options.focus,
+        json: options.json,
+        output: options.output,
+        verbose: options.verbose,
+        changed: options.changed,
+        file: options.file,
+        history: options.history,
+        saveBaseline: options.saveBaseline,
+        diff: options.diff,
+      });
+
+      if (options.json) {
+        console.log(result.json);
+      } else {
+        const { report } = result;
+
+        // Mode header
+        let modeLabel = '';
+        if (result.mode === 'changed') {
+          modeLabel = ` (changed files since ${result.modeDetail ?? 'HEAD~1'}, ${report.metrics.totalFiles} files)`;
+        } else if (result.mode === 'file') {
+          modeLabel = ` — ${result.modeDetail}`;
+        }
+
+        console.log(neuralCyan(`\n  Cortex Analysis — ${report.project.name}${modeLabel}\n`));
+
+        // Score + trend
+        let trendStr = '';
+        if (result.trend) {
+          const color =
+            result.trend.delta > 0 ? neuralCyan : result.trend.delta < 0 ? errorRed : dim;
+          trendStr = ` ${color(result.trend.label)}`;
+        }
+        console.log(
+          bold(`  Score: ${report.score.totalScore}/100  Grade: ${report.score.grade}`) +
+            trendStr +
+            '\n',
+        );
+
+        for (const cat of report.categoryResults) {
+          const catData = report.score.categories[cat.category];
+          if (catData?.isNA) {
+            console.log(dim(`  ${cat.name.padEnd(22)} N/A`));
+          } else {
+            console.log(
+              `  ${cat.name.padEnd(22)} ${synapseViolet(`${Math.round(cat.score * 100) / 100}/${cat.maxPoints}`)}`,
+            );
+          }
+        }
+
+        // Top findings
+        const allFindings = report.categoryResults.flatMap((r) => r.findings);
+        const critical = allFindings.filter((f) => f.severity === 'critical');
+        const major = allFindings.filter((f) => f.severity === 'major');
+
+        if (critical.length > 0 || major.length > 0) {
+          console.log(errorRed('\n  Top Issues:'));
+          for (const f of [...critical, ...major].slice(0, 5)) {
+            const sev = f.severity === 'critical' ? errorRed('[CRIT]') : synapseViolet('[MAJR]');
+            console.log(`  ${sev} ${f.ruleId}: ${f.title}`);
+            if (f.filePath) console.log(dim(`       ${f.filePath}`));
+          }
+        }
+
+        console.log(
+          dim(
+            `\n  ${report.metrics.totalFiles} files | ${report.metrics.totalTokens.toLocaleString()} tokens | ${allFindings.length} findings\n`,
+          ),
+        );
+
+        // Baseline diff output
+        if (result.baselineDiff) {
+          const bd = result.baselineDiff;
+          const scoreSign = bd.scoreChange >= 0 ? '+' : '';
+          console.log(bold('  Baseline Diff:'));
+          console.log(neuralCyan(`    New findings: ${bd.newFindings}`));
+          console.log(neuralCyan(`    Fixed:        ${bd.fixedFindings}`));
+          console.log(dim(`    Unchanged:    ${bd.unchanged}`));
+          console.log(bold(`    Score change: ${scoreSign}${bd.scoreChange}\n`));
+        }
+
+        // History output
+        if (result.historyEntries && result.historyEntries.length > 0) {
+          console.log(bold('  Score History:'));
+          for (const entry of result.historyEntries) {
+            const date = new Date(entry.timestamp).toISOString().slice(0, 16).replace('T', ' ');
+            console.log(dim(`    ${date}  ${entry.score}/100  ${entry.grade}`));
+          }
+          console.log('');
+        }
+
+        if (options.saveBaseline) {
+          console.log(neuralCyan('  Baseline saved to .cortex/analyze-baseline.json\n'));
+        }
+
+        if (options.output) {
+          writeFileSync(options.output, result.markdown, 'utf-8');
+          console.log(neuralCyan(`  Report written to ${options.output}\n`));
+        }
+      }
+    } catch (error) {
+      console.error(errorRed('Error:'), error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
 // Graph command
 program
   .command('graph')

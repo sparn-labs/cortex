@@ -77,10 +77,10 @@ function createBackup(dbPath: string): string {
 
   try {
     copyFileSync(dbPath, backupPath);
-    console.log(`✓ Database backed up to: ${backupPath}`);
+    process.stderr.write(`✓ Database backed up to: ${backupPath}\n`);
     return backupPath;
   } catch (error) {
-    console.error(`Warning: Could not create backup: ${error}`);
+    process.stderr.write(`Warning: Could not create backup: ${error}\n`);
     return '';
   }
 }
@@ -104,7 +104,7 @@ export async function createKVMemory(dbPath: string): Promise<KVMemory> {
     // Quick integrity check
     const integrityCheck = db.pragma('quick_check', { simple: true });
     if (integrityCheck !== 'ok') {
-      console.error('⚠ Database corruption detected!');
+      process.stderr.write('⚠ Database corruption detected!\n');
 
       // Close corrupted db before backup/recovery
       db.close();
@@ -113,21 +113,21 @@ export async function createKVMemory(dbPath: string): Promise<KVMemory> {
       if (existsSync(dbPath)) {
         const backupPath = createBackup(dbPath);
         if (backupPath) {
-          console.log(`Backup created at: ${backupPath}`);
+          process.stderr.write(`Backup created at: ${backupPath}\n`);
         }
       }
 
       // Try to recover
-      console.log('Attempting database recovery...');
+      process.stderr.write('Attempting database recovery...\n');
       db = new Database(dbPath);
     }
   } catch (error) {
-    console.error('⚠ Database error detected:', error);
+    process.stderr.write(`⚠ Database error detected: ${error}\n`);
 
     // Create backup if database exists
     if (existsSync(dbPath)) {
       createBackup(dbPath);
-      console.log('Creating new database...');
+      process.stderr.write('Creating new database...\n');
     }
 
     db = new Database(dbPath);

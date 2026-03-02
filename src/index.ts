@@ -7,6 +7,52 @@
 
 export { createClaudeCodeAdapter } from './adapters/claude-code.js';
 export { createGenericAdapter } from './adapters/generic.js';
+export type { AnalysisHistory, AnalysisHistoryEntry } from './core/analyzers/analysis-history.js';
+export { computeTrend, createAnalysisHistory } from './core/analyzers/analysis-history.js';
+export { createArchitectureAnalyzer } from './core/analyzers/architecture-analyzer.js';
+export type { AnalysisBaseline, BaselineFinding } from './core/analyzers/baseline.js';
+export {
+  diffFindings,
+  fingerprint,
+  loadBaseline,
+  saveBaseline,
+} from './core/analyzers/baseline.js';
+export {
+  buildAnalysisContext,
+  buildChangedFilesContext,
+  buildSingleFileContext,
+  getProjectName,
+} from './core/analyzers/context-builder.js';
+export type { CortexIgnore, IgnoreRule } from './core/analyzers/cortexignore.js';
+export { createCortexIgnore, parseCortexIgnore } from './core/analyzers/cortexignore.js';
+export { createDatabaseAnalyzer } from './core/analyzers/database-analyzer.js';
+export { createQualityAnalyzer } from './core/analyzers/quality-analyzer.js';
+export {
+  buildActionPlanItems,
+  buildReport,
+  generateJSONReport,
+  generateMarkdownReport,
+} from './core/analyzers/report-generator.js';
+export { computeScore, mapGrade } from './core/analyzers/scoring.js';
+export { createSecurityAnalyzer } from './core/analyzers/security-analyzer.js';
+export { createTestDocsAnalyzer } from './core/analyzers/testdocs-analyzer.js';
+export { createTokenAnalyzer } from './core/analyzers/token-analyzer.js';
+// Analyzers
+export type {
+  ActionPlanItem,
+  AnalysisCategory,
+  AnalysisContext,
+  AnalysisReport,
+  Analyzer,
+  AnalyzerFinding,
+  AnalyzeThresholds,
+  CategoryResult,
+  FixType,
+  Grade,
+  ScoreResult,
+  Severity,
+} from './core/analyzers/types.js';
+export { DEFAULT_THRESHOLDS } from './core/analyzers/types.js';
 export type { BTSPEmbedder, BTSPEmbedderConfig } from './core/btsp-embedder.js';
 export { createBTSPEmbedder } from './core/btsp-embedder.js';
 export type { BudgetPruner, BudgetPrunerConfig } from './core/budget-pruner.js';
@@ -95,6 +141,7 @@ export type {
 } from './types/adapter.js';
 export type {
   AgentType,
+  AnalyzeConfig,
   CortexConfig,
   DecayConfig,
   PruningConfig,

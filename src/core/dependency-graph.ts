@@ -69,12 +69,22 @@ export interface DependencyGraph {
 const IMPORT_PATTERNS = [
   // import { Foo, Bar } from './module'
   /import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]/g,
+  // import type { Foo, Bar } from './module'
+  /import\s+type\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]/g,
   // import Foo from './module'
   /import\s+(\w+)\s+from\s+['"]([^'"]+)['"]/g,
+  // import type Foo from './module'
+  /import\s+type\s+(\w+)\s+from\s+['"]([^'"]+)['"]/g,
   // import * as Foo from './module'
   /import\s+\*\s+as\s+(\w+)\s+from\s+['"]([^'"]+)['"]/g,
   // import './module' (side-effect)
   /import\s+['"]([^'"]+)['"]/g,
+  // export { Foo } from './module' (re-export as import edge)
+  /export\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]/g,
+  // export type { Foo } from './module'
+  /export\s+type\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]/g,
+  // export * from './module'
+  /export\s+\*\s+from\s+['"]([^'"]+)['"]/g,
   // require('./module')
   /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
 ];
@@ -100,7 +110,16 @@ function parseImports(content: string, filePath: string): DependencyEdge[] {
     const matches = [...content.matchAll(regex)];
 
     for (const match of matches) {
-      if (pattern.source.includes('from')) {
+      if (pattern.source.includes('\\*\\s+from')) {
+        // export * from './module' — only 1 capture group (the path)
+        const target = match[1] || '';
+        if (!target || (!target.startsWith('.') && !target.startsWith('/'))) continue;
+        const key = `${filePath}->${target}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          edges.push({ source: filePath, target, symbols: ['*'] });
+        }
+      } else if (pattern.source.includes('from')) {
         // Named/default imports with from clause
         const symbolsRaw = match[1] || '';
         const target = match[2] || '';

@@ -96,6 +96,24 @@ export interface RealtimeConfig {
 }
 
 /**
+ * Analyze command configuration.
+ */
+export interface AnalyzeConfig {
+  layerRules?: Record<string, string[]>;
+  thresholds?: {
+    maxCyclomaticComplexity?: number;
+    maxFunctionLength?: number;
+    maxFileLength?: number;
+    maxCouplingCa?: number;
+    maxCouplingCe?: number;
+    maxDIT?: number;
+    minTestCoverage?: number;
+  };
+  secretsIgnorePatterns?: string[];
+  excludePatterns?: string[];
+}
+
+/**
  * Complete Cortex configuration.
  */
 export interface CortexConfig {
@@ -110,6 +128,8 @@ export interface CortexConfig {
   realtime: RealtimeConfig;
   /** Additional BTSP pattern regex strings (default: []) */
   btspPatterns?: string[];
+  /** Analyze command settings */
+  analyze?: AnalyzeConfig;
 }
 
 /**

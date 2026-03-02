@@ -80,13 +80,13 @@ describe('scoreTFIDF', () => {
   it('should return 0 for empty content', () => {
     const entries = [makeEntry(''), makeEntry('hello world')];
     const index = createTFIDFIndex(entries);
-    expect(scoreTFIDF(entries[0]!, index)).toBe(0);
+    expect(scoreTFIDF(entries[0] as MemoryEntry, index)).toBe(0);
   });
 
   it('should return 0 for single document corpus (all IDF = 0)', () => {
     const entries = [makeEntry('hello world')];
     const index = createTFIDFIndex(entries);
-    expect(scoreTFIDF(entries[0]!, index)).toBe(0);
+    expect(scoreTFIDF(entries[0] as MemoryEntry, index)).toBe(0);
   });
 
   it('should score higher for entries with distinctive terms', () => {
@@ -97,8 +97,8 @@ describe('scoreTFIDF', () => {
     ];
     const index = createTFIDFIndex(entries);
 
-    const scoreWithUnique = scoreTFIDF(entries[0]!, index);
-    const scoreCommon = scoreTFIDF(entries[1]!, index);
+    const scoreWithUnique = scoreTFIDF(entries[0] as MemoryEntry, index);
+    const scoreCommon = scoreTFIDF(entries[1] as MemoryEntry, index);
 
     // Entry with terms unique to it scores higher than entry with only common terms
     expect(scoreWithUnique).toBeGreaterThan(scoreCommon);

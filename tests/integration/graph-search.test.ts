@@ -110,7 +110,7 @@ describe('Graph + Search Integration', () => {
     writeFile('src/utils/db.ts', 'export function query(sql: string) { return []; }');
     writeFile(
       'src/core/user.ts',
-      "import { query } from '../utils/db.js';\nexport function getUser(id: number) { return query(`SELECT * FROM users WHERE id = ${id}`); }",
+      `import { query } from '../utils/db.js';\nexport function getUser(id: number) { return query(\`SELECT * FROM users WHERE id = \${id}\`); }`,
     );
     writeFile(
       'src/index.ts',

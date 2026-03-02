@@ -127,6 +127,28 @@ cortex debt list --overdue
 cortex debt resolve <id>
 ```
 
+### Codebase analyzer
+
+Multi-dimensional scoring across architecture, quality, database, security, tokens, and test coverage:
+
+```bash
+cortex analyze                    # Full analysis with score + grade
+cortex analyze --json             # Machine-readable output with fixable/fixType hints
+cortex analyze --file src/api.ts  # Per-file health score
+cortex analyze --changed          # Only files changed since last commit
+cortex analyze --history          # Score trend over time
+cortex analyze --save-baseline    # Save current results as baseline
+cortex analyze --diff             # Compare against saved baseline
+```
+
+Supports `.cortexignore` for excluding files or suppressing specific rules:
+
+```
+# .cortexignore
+src/generated/**
+src/legacy/** QUAL-001,QUAL-003
+```
+
 ## CLI
 
 Running `cortex` with no arguments shows project status. Help shows the essential commands by default:
@@ -139,7 +161,7 @@ cortex --help --all # Everything
 
 Essential commands: `setup`, `status`, `optimize`, `stats`, `hooks`.
 
-Advanced commands (visible with `--all`): `graph`, `search`, `docs`, `plan`, `exec`, `verify`, `debt`, `config`, `relay`, `consolidate`, `interactive`, `daemon`, `mcp:server`.
+Advanced commands (visible with `--all`): `analyze`, `graph`, `search`, `docs`, `plan`, `exec`, `verify`, `debt`, `config`, `relay`, `consolidate`, `interactive`, `daemon`, `mcp:server`.
 
 ## Configuration
 
@@ -188,7 +210,7 @@ const result = pruner.prune(largeContext, 5);
 console.log(`${estimateTokens(largeContext)} -> ${estimateTokens(result.prunedContext)} tokens`);
 ```
 
-Full API: `createDependencyGraph`, `createSearchEngine`, `createWorkflowPlanner`, `createDocsGenerator`, `createDebtTracker`, `createKVMemory`, `createBudgetPrunerFromConfig`, `createIncrementalOptimizer`, and more.
+Full API: `createDependencyGraph`, `createSearchEngine`, `createWorkflowPlanner`, `createDocsGenerator`, `createDebtTracker`, `createAnalysisHistory`, `createCortexIgnore`, `buildAnalysisContext`, `buildChangedFilesContext`, `buildSingleFileContext`, `createKVMemory`, `createBudgetPrunerFromConfig`, `createIncrementalOptimizer`, and more.
 
 ## How It Works
 

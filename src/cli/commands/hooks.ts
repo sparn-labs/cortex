@@ -89,6 +89,38 @@ export async function hooksCommand(options: HooksCommandOptions): Promise<HooksC
   }
 }
 
+function validateHookScripts(...paths: string[]): string | null {
+  for (const p of paths) {
+    if (!existsSync(p)) return p;
+  }
+  return null;
+}
+
+function loadOrCreateSettings(settingsPath: string): Record<string, unknown> {
+  if (existsSync(settingsPath)) {
+    return JSON.parse(readFileSync(settingsPath, 'utf-8'));
+  }
+  const claudeDir = dirname(settingsPath);
+  if (!existsSync(claudeDir)) {
+    mkdirSync(claudeDir, { recursive: true });
+  }
+  return {};
+}
+
+function addHookEntry(
+  hooks: HooksConfig,
+  event: string,
+  scriptPath: string,
+  matcher?: string,
+): void {
+  if (!hooks[event]) hooks[event] = [];
+  const entry: Record<string, unknown> = {
+    hooks: [{ type: 'command', command: `node "${scriptPath.replace(/\\/g, '/')}"`, timeout: 10 }],
+  };
+  if (matcher) entry.matcher = matcher;
+  hooks[event].push(entry as HooksConfig[string][number]);
+}
+
 function installHooks(
   settingsPath: string,
   prePromptPath: string,
@@ -97,96 +129,32 @@ function installHooks(
   global?: boolean,
 ): HooksCommandResult {
   try {
-    if (!existsSync(prePromptPath)) {
+    const missingScript = validateHookScripts(
+      prePromptPath,
+      postToolResultPath,
+      stopDocsRefreshPath,
+    );
+    if (missingScript) {
       return {
         success: false,
-        message: `Hook script not found: ${prePromptPath}`,
+        message: `Hook script not found: ${missingScript}`,
         error: 'Hook scripts not built. Run `npm run build` first.',
       };
     }
 
-    if (!existsSync(postToolResultPath)) {
-      return {
-        success: false,
-        message: `Hook script not found: ${postToolResultPath}`,
-        error: 'Hook scripts not built. Run `npm run build` first.',
-      };
-    }
+    const settings = loadOrCreateSettings(settingsPath);
 
-    if (!existsSync(stopDocsRefreshPath)) {
-      return {
-        success: false,
-        message: `Hook script not found: ${stopDocsRefreshPath}`,
-        error: 'Hook scripts not built. Run `npm run build` first.',
-      };
-    }
-
-    let settings: Record<string, unknown> = {};
-
-    if (existsSync(settingsPath)) {
-      const settingsJson = readFileSync(settingsPath, 'utf-8');
-      settings = JSON.parse(settingsJson);
-    } else {
-      const claudeDir = dirname(settingsPath);
-      if (!existsSync(claudeDir)) {
-        mkdirSync(claudeDir, { recursive: true });
-      }
-    }
-
-    // Get existing hooks or create empty object
     const hooks: HooksConfig =
       typeof settings['hooks'] === 'object' && settings['hooks'] !== null
         ? (settings['hooks'] as HooksConfig)
         : {};
 
-    // Remove any existing cortex hooks first (clean install)
     removeCortexHooks(hooks);
-
-    // Add UserPromptSubmit hook (pre-prompt optimization)
-    if (!hooks[PRE_PROMPT_EVENT]) {
-      hooks[PRE_PROMPT_EVENT] = [];
-    }
-    hooks[PRE_PROMPT_EVENT].push({
-      hooks: [
-        {
-          type: 'command',
-          command: `node "${prePromptPath.replace(/\\/g, '/')}"`,
-          timeout: 10,
-        },
-      ],
-    });
-
-    // Add PostToolUse hook (output compression)
-    if (!hooks[POST_TOOL_EVENT]) {
-      hooks[POST_TOOL_EVENT] = [];
-    }
-    hooks[POST_TOOL_EVENT].push({
-      matcher: POST_TOOL_MATCHER,
-      hooks: [
-        {
-          type: 'command',
-          command: `node "${postToolResultPath.replace(/\\/g, '/')}"`,
-          timeout: 10,
-        },
-      ],
-    });
-
-    // Add Stop hook (auto-regenerate CLAUDE.md)
-    if (!hooks[STOP_DOCS_EVENT]) {
-      hooks[STOP_DOCS_EVENT] = [];
-    }
-    hooks[STOP_DOCS_EVENT].push({
-      hooks: [
-        {
-          type: 'command',
-          command: `node "${stopDocsRefreshPath.replace(/\\/g, '/')}"`,
-          timeout: 10,
-        },
-      ],
-    });
+    addHookEntry(hooks, PRE_PROMPT_EVENT, prePromptPath);
+    addHookEntry(hooks, POST_TOOL_EVENT, postToolResultPath, POST_TOOL_MATCHER);
+    addHookEntry(hooks, STOP_DOCS_EVENT, stopDocsRefreshPath);
 
     settings['hooks'] = hooks;
-
     writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
 
     return {
