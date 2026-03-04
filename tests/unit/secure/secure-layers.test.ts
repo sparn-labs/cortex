@@ -1,5 +1,5 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runAccessControlLayer } from '../../../src/core/secure/layers/access-control.js';
 import { runAuthSessionLayer } from '../../../src/core/secure/layers/auth-session.js';
@@ -23,8 +23,7 @@ function buildFiles(fileContents: Record<string, string>): Map<string, string> {
   for (const [path, content] of Object.entries(fileContents)) {
     files.set(path, content);
     const fullPath = join(tmpDir, path);
-    const dir = fullPath.substring(0, fullPath.lastIndexOf('/'));
-    mkdirSync(dir, { recursive: true });
+    mkdirSync(dirname(fullPath), { recursive: true });
     writeFileSync(fullPath, content);
   }
   return files;
