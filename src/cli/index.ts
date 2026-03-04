@@ -1380,6 +1380,144 @@ program
     });
   });
 
+// Security audit command
+program
+  .command('secure [path]')
+  .description('Enterprise security audit — 10 OWASP 2025-aligned defense layers')
+  .option('--fix', 'Apply safe auto-fixes')
+  .option('--ci', 'CI mode — exit non-zero on failures')
+  .option('--min-grade <grade>', 'Minimum passing grade (CI mode)')
+  .option('--fail-on <severity>', 'Fail on severity: critical, high, medium, low')
+  .option('--layer <layers>', 'Run specific layers (comma-separated: 1,5,7)')
+  .option('--compare <file>', 'Compare with previous JSON report')
+  .option('--output <format>', 'Output format: json, markdown (default: console)')
+  .option('--output-file <file>', 'Write report to file')
+  .option('--quick', 'Quick scan — critical layers only (1,3,4,5)')
+  .option('--compliance <framework>', 'Compliance framework: owasp-top10, asvs-l2, nist-zta')
+  .option('--verbose', 'Show detailed check output')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ cortex secure                           # Scan current directory
+  $ cortex secure ./my-project              # Scan specific path
+  $ cortex secure --quick                   # Critical layers only
+  $ cortex secure --layer=1,5               # Access control + injection only
+  $ cortex secure --output json --output-file report.json
+  $ cortex secure --ci --min-grade=A --fail-on=critical
+  $ cortex secure --fix                     # Apply safe auto-fixes
+  $ cortex secure --compare previous.json   # Compare with baseline
+`,
+  )
+  .action(async (path, options) => {
+    const { secureCommand, displaySecureReport } = await import('./commands/secure.js');
+    const { neuralCyan, synapseViolet, errorRed, brainPink, dim, bold } = await import(
+      './ui/colors.js'
+    );
+    const { createOptimizeSpinner } = await import('./ui/progress.js');
+
+    const spinner = createOptimizeSpinner('Running security audit...');
+    try {
+      playCommand();
+      spinner.start();
+
+      const result = await secureCommand({ path, ...options });
+
+      spinner.stop();
+
+      // JSON output mode — just print JSON
+      if (options.output === 'json') {
+        console.log(result.json);
+      } else if (options.output === 'markdown') {
+        console.log(result.markdown);
+      } else {
+        displaySecureReport(result, { neuralCyan, synapseViolet, errorRed, brainPink, dim, bold });
+      }
+
+      if (options.outputFile) {
+        console.log(dim(`Report written to ${options.outputFile}`));
+      }
+
+      playComplete();
+
+      if (result.exitCode !== 0) {
+        process.exit(result.exitCode);
+      }
+    } catch (error) {
+      spinner.fail(errorRed('Security audit failed'));
+      console.error(errorRed('Error:'), error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+// Compliance audit command
+program
+  .command('comply [path]')
+  .description('Legal & regulatory compliance audit — GDPR, CCPA, HIPAA, SOC2')
+  .option('--ci', 'CI mode — exit non-zero on failures')
+  .option('--min-grade <grade>', 'Minimum passing grade (CI mode)')
+  .option('--fail-on <severity>', 'Fail on severity: critical, high, medium, low')
+  .option('--framework <list>', 'Frameworks: gdpr,ccpa,hipaa,soc2,all (default: all)')
+  .option('--layer <layers>', 'Run specific layers (comma-separated: 1,3,6)')
+  .option('--output <format>', 'Output format: json, markdown (default: console)')
+  .option('--output-file <file>', 'Write report to file')
+  .option('--quick', 'Quick scan — layers 1,2,3 only')
+  .option('--verbose', 'Show detailed check output')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ cortex comply                           # Scan current directory (all frameworks)
+  $ cortex comply ./my-project              # Scan specific path
+  $ cortex comply --framework gdpr          # GDPR only
+  $ cortex comply --framework gdpr,ccpa     # GDPR + CCPA
+  $ cortex comply --quick                   # Layers 1,2,3 only
+  $ cortex comply --layer=1,3              # Personal data + data rights only
+  $ cortex comply --output json --output-file report.json
+  $ cortex comply --ci --min-grade=A --fail-on=critical
+`,
+  )
+  .action(async (path, options) => {
+    const { complyCommand, displayComplyReport } = await import('./commands/comply.js');
+    const { neuralCyan, synapseViolet, errorRed, brainPink, dim, bold } = await import(
+      './ui/colors.js'
+    );
+    const { createOptimizeSpinner } = await import('./ui/progress.js');
+
+    const spinner = createOptimizeSpinner('Running compliance audit...');
+    try {
+      playCommand();
+      spinner.start();
+
+      const result = await complyCommand({ path, ...options });
+
+      spinner.stop();
+
+      // JSON output mode — just print JSON
+      if (options.output === 'json') {
+        console.log(result.json);
+      } else if (options.output === 'markdown') {
+        console.log(result.markdown);
+      } else {
+        displayComplyReport(result, { neuralCyan, synapseViolet, errorRed, brainPink, dim, bold });
+      }
+
+      if (options.outputFile) {
+        console.log(dim(`Report written to ${options.outputFile}`));
+      }
+
+      playComplete();
+
+      if (result.exitCode !== 0) {
+        process.exit(result.exitCode);
+      }
+    } catch (error) {
+      spinner.fail(errorRed('Compliance audit failed'));
+      console.error(errorRed('Error:'), error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
 // Status command (quick overview)
 program
   .command('status')

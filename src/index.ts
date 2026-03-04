@@ -57,6 +57,25 @@ export type { BTSPEmbedder, BTSPEmbedderConfig } from './core/btsp-embedder.js';
 export { createBTSPEmbedder } from './core/btsp-embedder.js';
 export type { BudgetPruner, BudgetPrunerConfig } from './core/budget-pruner.js';
 export { createBudgetPruner, createBudgetPrunerFromConfig } from './core/budget-pruner.js';
+// v1.5.0 — Legal & Regulatory Compliance Analyzer
+export { runComplyAudit } from './core/comply/engine.js';
+export { generateComplyJSON, generateComplyMarkdown } from './core/comply/report.js';
+export { computeComplyScore, mapComplyGrade } from './core/comply/scorer.js';
+export type {
+  ComplianceFramework,
+  ComplyAuditOptions,
+  ComplyFinding,
+  ComplyGrade,
+  ComplyLayerResult,
+  ComplyLayerScore,
+  ComplyRemediationRoadmap,
+  ComplyReport,
+  ComplySeverity,
+  DataFlowSummary,
+  FrameworkComplianceMatrix,
+  RegulatoryReference,
+} from './core/comply/types.js';
+export { COMPLY_LAYER_NAMES, COMPLY_LAYER_WEIGHTS } from './core/comply/types.js';
 export type { ConfidenceStates, ConfidenceStatesConfig } from './core/confidence-states.js';
 export { createConfidenceStates } from './core/confidence-states.js';
 export type {
@@ -102,6 +121,22 @@ export { createMetricsCollector, getMetrics } from './core/metrics.js';
 // v1.4.0 — Search Engine
 export type { IndexStats, SearchEngine, SearchOpts, SearchResult } from './core/search-engine.js';
 export { createSearchEngine } from './core/search-engine.js';
+// v1.4.0 — Enterprise Security Analyzer
+export { runSecureAudit } from './core/secure/engine.js';
+export { generateSecureJSON, generateSecureMarkdown } from './core/secure/report.js';
+export { computeSecureScore, mapSecureGrade } from './core/secure/scorer.js';
+export type {
+  AttackSurface,
+  ComplianceMatrix,
+  LayerResult,
+  RemediationRoadmap,
+  SecureAuditOptions,
+  SecureFinding,
+  SecureGrade,
+  SecureReport,
+  SecureSeverity,
+} from './core/secure/types.js';
+export { LAYER_NAMES, LAYER_WEIGHTS } from './core/secure/types.js';
 export type { SleepCompressor } from './core/sleep-compressor.js';
 export { createSleepCompressor } from './core/sleep-compressor.js';
 export type { SparsePruner, SparsePrunerConfig } from './core/sparse-pruner.js';
