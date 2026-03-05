@@ -150,9 +150,12 @@ Add to your pipeline:
 
 Exit codes: `0` = pass, `1` = findings exceed threshold.
 
-## For Developers
+## See Also
 
-Need advanced features like memory optimization, dependency graphs, hooks, MCP servers, or background daemons? See [@sparn/cortex-developer-edition](https://www.npmjs.com/package/@sparn/cortex-developer-edition).
+| Package | What it does |
+|---|---|
+| [`@sparn/cortex-developer-edition`](https://github.com/sparn-labs/cortex-developer-edition) | Full context optimization + code analysis for AI coding agents (hooks, daemon, MCP, dependency graphs, search) |
+| [`@sparn/cortex-lite`](https://github.com/sparn-labs/cortex-lite) | Lightweight context compression with a native Rust engine — no CLI, just hooks and a programmatic API |
 
 ## Development
 
