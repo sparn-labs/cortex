@@ -30,6 +30,7 @@ export interface ScanCommandOptions {
   json?: boolean;
   output?: string;
   verbose?: boolean;
+  audit?: boolean;
   thresholds?: Partial<AnalyzeThresholds>;
 }
 

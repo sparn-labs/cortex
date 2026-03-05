@@ -143,6 +143,7 @@ program
   .option('--json', 'Output JSON format')
   .option('-o, --output <file>', 'Write report to file')
   .option('-v, --verbose', 'Show detailed findings')
+  .option('--audit', 'Interactive audit: review and apply safe fixes')
   .action(async (path, opts) => {
     const { brainPink, neuralCyan, synapseViolet, errorRed, dim, bold } = await import(
       './ui/colors.js'
@@ -160,6 +161,7 @@ program
         json: opts.json,
         output: opts.output,
         verbose: opts.verbose,
+        audit: opts.audit,
       });
 
       spinner.stop();
@@ -225,6 +227,102 @@ program
       }
 
       console.log(`\n${brainPink('━'.repeat(60))}\n`);
+
+      // Audit mode: interactive fix application
+      const projectRoot = resolve(path || process.cwd());
+      const allFindings = report.categoryResults.flatMap((c) => c.findings);
+      const { collectFixableActions, applyFixAction } = await import(
+        '../core/analyzers/auto-fix.js'
+      );
+      const fixableActions = collectFixableActions(projectRoot, allFindings);
+
+      if (opts.audit) {
+        if (!process.stdin.isTTY) {
+          console.error(errorRed('✗ --audit requires an interactive terminal (TTY)'));
+          process.exit(1);
+        }
+
+        if (fixableActions.length === 0) {
+          console.log(dim('  No fixable findings found.\n'));
+        } else {
+          console.log(
+            bold(`  Audit: ${neuralCyan(String(fixableActions.length))} fixable finding(s) found\n`),
+          );
+
+          const readline = await import('node:readline');
+          const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+          });
+
+          const ask = (question: string): Promise<string> =>
+            new Promise((res) => rl.question(question, res));
+
+          let applied = 0;
+          let declined = 0;
+          let failed = 0;
+
+          // Batch prompt
+          const batchAnswer = await ask(
+            `  Apply all ${fixableActions.length} fixes at once? [y/N] `,
+          );
+          const applyAll = batchAnswer.trim().toLowerCase() === 'y';
+
+          if (applyAll) {
+            for (const action of fixableActions) {
+              const success = applyFixAction(action);
+              if (success) {
+                console.log(neuralCyan(`  ✓ Applied: ${action.description}`));
+                applied++;
+              } else {
+                console.log(errorRed(`  ✗ Failed: ${action.description}`));
+                failed++;
+              }
+            }
+          } else {
+            // Individual prompts
+            for (const action of fixableActions) {
+              console.log(
+                `\n  ${bold(action.ruleId)} ${action.description}`,
+              );
+              console.log(`  File: ${dim(action.file)}`);
+              for (const line of action.preview) {
+                console.log(`    - ${line}`);
+              }
+
+              const answer = await ask('  Apply this fix? [y/N] ');
+              if (answer.trim().toLowerCase() === 'y') {
+                const success = applyFixAction(action);
+                if (success) {
+                  console.log(neuralCyan(`  ✓ Applied: ${action.description}`));
+                  applied++;
+                } else {
+                  console.log(errorRed(`  ✗ Failed: ${action.description}`));
+                  failed++;
+                }
+              } else {
+                declined++;
+              }
+            }
+          }
+
+          rl.close();
+
+          // Summary
+          console.log(`\n${bold('  Audit Summary:')}`);
+          console.log(`    Applied:  ${neuralCyan(String(applied))}`);
+          if (declined > 0) console.log(`    Declined: ${dim(String(declined))}`);
+          if (failed > 0) console.log(`    Failed:   ${errorRed(String(failed))}`);
+          console.log('');
+        }
+      } else if (fixableActions.length > 0) {
+        // Hint when not in audit mode
+        console.log(
+          dim(
+            `  ${fixableActions.length} fixable finding(s) — run with --audit to review and apply fixes\n`,
+          ),
+        );
+      }
     } catch (error) {
       spinner.fail('Scan failed');
       await handleError(error, 'scan');
