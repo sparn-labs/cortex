@@ -235,13 +235,13 @@ describe('Report Generator', () => {
       expect(items).toHaveLength(2);
 
       const removeItem = items.find((i) => i.ruleId === 'QUAL-009');
-      expect(removeItem!.effort).toBe('low');
-      expect(removeItem!.fixable).toBe(true);
-      expect(removeItem!.pointsRecoverable).toBe(0.5);
+      expect(removeItem?.effort).toBe('low');
+      expect(removeItem?.fixable).toBe(true);
+      expect(removeItem?.pointsRecoverable).toBe(0.5);
 
       const refactorItem = items.find((i) => i.ruleId === 'ARCH-004');
-      expect(refactorItem!.effort).toBe('high');
-      expect(refactorItem!.fixable).toBe(false);
+      expect(refactorItem?.effort).toBe('high');
+      expect(refactorItem?.fixable).toBe(false);
     });
   });
 });

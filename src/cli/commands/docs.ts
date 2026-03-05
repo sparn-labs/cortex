@@ -4,13 +4,10 @@
 
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { DependencyGraph } from '../../core/dependency-graph.js';
-import { createDependencyGraph } from '../../core/dependency-graph.js';
 import { createDocsGenerator } from '../../core/docs-generator.js';
 
 export interface DocsCommandOptions {
   output?: string;
-  includeGraph?: boolean;
   json?: boolean;
 }
 
@@ -23,18 +20,8 @@ export interface DocsCommandResult {
 export async function docsCommand(options: DocsCommandOptions): Promise<DocsCommandResult> {
   const projectRoot = resolve(process.cwd());
 
-  const generator = createDocsGenerator({
-    projectRoot,
-    includeGraph: options.includeGraph !== false,
-  });
-
-  let graph: DependencyGraph | undefined;
-  if (options.includeGraph !== false) {
-    graph = createDependencyGraph({ projectRoot });
-    await graph.build();
-  }
-
-  const content = await generator.generate(graph);
+  const generator = createDocsGenerator({ projectRoot });
+  const content = await generator.generate();
 
   if (options.json) {
     return {
@@ -44,8 +31,6 @@ export async function docsCommand(options: DocsCommandOptions): Promise<DocsComm
   }
 
   const outputPath = options.output || resolve(projectRoot, 'CLAUDE.md');
-
-  // Write output
   writeFileSync(outputPath, content, 'utf-8');
 
   return {

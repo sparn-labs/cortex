@@ -9,7 +9,7 @@ import { createDebtTracker } from '../../src/core/debt-tracker.js';
 
 describe('Debt Tracker', () => {
   const tmpDir = join(process.cwd(), '.test-debt-tmp');
-  const dbPath = join(tmpDir, 'debt.db');
+  const dbPath = join(tmpDir, 'debt.json');
 
   beforeEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });

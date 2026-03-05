@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   buildAnalysisContext,
-  buildSingleFileContext,
   getProjectName,
 } from '../../../src/core/analyzers/context-builder.js';
 
@@ -58,41 +57,6 @@ describe('Context Builder', () => {
       expect(context.ignore).toBeDefined();
       expect(typeof context.ignore.isFileExcluded).toBe('function');
       expect(typeof context.ignore.isRuleSuppressed).toBe('function');
-    });
-  });
-
-  describe('buildSingleFileContext', () => {
-    it('should include only the specified file', async () => {
-      writeFileSync(join(tmpDir, 'src', 'target.ts'), 'export const target = 1;\n');
-      writeFileSync(join(tmpDir, 'src', 'other.ts'), 'export const other = 2;\n');
-
-      const context = await buildSingleFileContext(tmpDir, 'src/target.ts');
-
-      expect(context.files.size).toBe(1);
-      expect(context.files.has('src/target.ts')).toBe(true);
-      expect(context.files.has('src/other.ts')).toBe(false);
-    });
-
-    it('should still build dependency graph', async () => {
-      writeFileSync(join(tmpDir, 'src', 'target.ts'), 'export const target = 1;\n');
-
-      const context = await buildSingleFileContext(tmpDir, 'src/target.ts');
-
-      expect(context.dependencyGraph).toBeDefined();
-      expect(context.graphAnalysis).toBeDefined();
-    });
-
-    it('should reject path traversal attempts', async () => {
-      const context = await buildSingleFileContext(tmpDir, '../../../etc/passwd');
-
-      // Should return empty files, not read outside project root
-      expect(context.files.size).toBe(0);
-    });
-
-    it('should handle nonexistent file gracefully', async () => {
-      const context = await buildSingleFileContext(tmpDir, 'src/nonexistent.ts');
-
-      expect(context.files.size).toBe(0);
     });
   });
 

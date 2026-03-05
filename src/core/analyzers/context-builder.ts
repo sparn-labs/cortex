@@ -1,12 +1,11 @@
 /**
  * Builds the shared AnalysisContext used by all analyzers.
- * Collects files, detects stack, parses git log, builds dependency graph.
+ * Collects files, detects stack, parses git log.
  */
 
-import { execFileSync, execSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, extname, join, relative, resolve } from 'node:path';
-import { createDependencyGraph } from '../dependency-graph.js';
+import { basename, extname, join, relative } from 'node:path';
 import { createCortexIgnore } from './cortexignore.js';
 import type { AnalysisContext, AnalyzeThresholds, GitLogEntry } from './types.js';
 import { DEFAULT_THRESHOLDS } from './types.js';
@@ -164,190 +163,12 @@ export async function buildAnalysisContext(
   }
 
   const stackTags = detectStack(files, projectRoot);
-
-  const graph = createDependencyGraph({ projectRoot });
-  const nodes = await graph.build();
-  const graphAnalysis = await graph.analyze();
-
   const { available: gitAvailable, entries: gitLog } = parseGitLog(projectRoot);
 
   return {
     projectRoot,
     files,
     extensions,
-    dependencyGraph: graph,
-    graphAnalysis,
-    nodes,
-    stackTags,
-    gitAvailable,
-    gitLog,
-    config,
-    ignore,
-  };
-}
-
-/**
- * Build context for only the files changed since a git ref.
- * Full dependency graph is still built (needed for ARCH checks).
- */
-export async function buildChangedFilesContext(
-  projectRoot: string,
-  since = 'HEAD~1',
-  thresholds?: Partial<AnalyzeThresholds>,
-): Promise<AnalysisContext> {
-  const config: AnalyzeThresholds = { ...DEFAULT_THRESHOLDS, ...thresholds };
-  const ignore = createCortexIgnore(projectRoot, config.excludePatterns);
-
-  // Get changed files from git
-  let changedFiles: string[] = [];
-  try {
-    const diffOutput = execFileSync('git', ['diff', '--name-only', since], {
-      cwd: projectRoot,
-      encoding: 'utf-8',
-      timeout: 10000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    const cachedOutput = execFileSync('git', ['diff', '--name-only', '--cached'], {
-      cwd: projectRoot,
-      encoding: 'utf-8',
-      timeout: 10000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    const allChanged = new Set([
-      ...diffOutput
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean),
-      ...cachedOutput
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean),
-    ]);
-    changedFiles = [...allChanged];
-  } catch {
-    // Git not available or ref invalid — fall back to full context
-    return buildAnalysisContext(projectRoot, thresholds);
-  }
-
-  // Read only changed files that are source files and not ignored
-  const files = new Map<string, string>();
-  for (const relPath of changedFiles) {
-    const ext = extname(relPath);
-    if (!SOURCE_EXTENSIONS.has(ext)) continue;
-    if (ignore.isFileExcluded(relPath)) continue;
-
-    const fullPath = join(projectRoot, relPath);
-    try {
-      if (existsSync(fullPath)) {
-        const stat = statSync(fullPath);
-        if (stat.size < 1_000_000) {
-          files.set(relPath, readFileSync(fullPath, 'utf-8'));
-        }
-      }
-    } catch {
-      // Skip unreadable files
-    }
-  }
-
-  const extensions = new Set<string>();
-  for (const path of files.keys()) {
-    extensions.add(extname(path));
-  }
-
-  const stackTags = detectStack(files, projectRoot);
-
-  // Full dependency graph still needed for arch checks
-  const graph = createDependencyGraph({ projectRoot });
-  const nodes = await graph.build();
-  const graphAnalysis = await graph.analyze();
-
-  const { available: gitAvailable, entries: gitLog } = parseGitLog(projectRoot);
-
-  return {
-    projectRoot,
-    files,
-    extensions,
-    dependencyGraph: graph,
-    graphAnalysis,
-    nodes,
-    stackTags,
-    gitAvailable,
-    gitLog,
-    config,
-    ignore,
-  };
-}
-
-/**
- * Build context for a single file.
- * Full dependency graph is still built (needed for coupling analysis).
- */
-export async function buildSingleFileContext(
-  projectRoot: string,
-  filePath: string,
-  thresholds?: Partial<AnalyzeThresholds>,
-): Promise<AnalysisContext> {
-  const config: AnalyzeThresholds = { ...DEFAULT_THRESHOLDS, ...thresholds };
-  const ignore = createCortexIgnore(projectRoot, config.excludePatterns);
-
-  const files = new Map<string, string>();
-  const relPath = filePath.startsWith(projectRoot)
-    ? relative(projectRoot, filePath).replace(/\\/g, '/')
-    : filePath.replace(/\\/g, '/');
-
-  // Prevent path traversal — resolved path must stay within projectRoot
-  const fullPath = resolve(projectRoot, relPath);
-  if (!fullPath.startsWith(projectRoot)) {
-    // Path escapes project root — return empty context
-    const graph = createDependencyGraph({ projectRoot });
-    const nodes = await graph.build();
-    const graphAnalysis = await graph.analyze();
-    const { available: gitAvailable, entries: gitLog } = parseGitLog(projectRoot);
-    return {
-      projectRoot,
-      files,
-      extensions: new Set(),
-      dependencyGraph: graph,
-      graphAnalysis,
-      nodes,
-      stackTags: new Set(),
-      gitAvailable,
-      gitLog,
-      config,
-      ignore,
-    };
-  }
-
-  try {
-    if (existsSync(fullPath)) {
-      files.set(relPath, readFileSync(fullPath, 'utf-8'));
-    }
-  } catch {
-    // Skip unreadable file
-  }
-
-  const extensions = new Set<string>();
-  for (const path of files.keys()) {
-    extensions.add(extname(path));
-  }
-
-  const stackTags = detectStack(files, projectRoot);
-
-  // Full dependency graph still needed for coupling analysis
-  const graph = createDependencyGraph({ projectRoot });
-  const nodes = await graph.build();
-  const graphAnalysis = await graph.analyze();
-
-  const { available: gitAvailable, entries: gitLog } = parseGitLog(projectRoot);
-
-  return {
-    projectRoot,
-    files,
-    extensions,
-    dependencyGraph: graph,
-    graphAnalysis,
-    nodes,
     stackTags,
     gitAvailable,
     gitLog,

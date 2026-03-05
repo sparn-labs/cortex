@@ -28,8 +28,8 @@ export interface DebtCommandResult {
 
 export async function debtCommand(options: DebtCommandOptions): Promise<DebtCommandResult> {
   const projectRoot = resolve(process.cwd());
-  const dbPath = resolve(projectRoot, '.cortex', 'memory.db');
-  const tracker = createDebtTracker(dbPath);
+  const debtPath = resolve(projectRoot, '.cortex', 'debt.json');
+  const tracker = createDebtTracker(debtPath);
 
   try {
     switch (options.subcommand) {

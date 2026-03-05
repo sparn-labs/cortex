@@ -2,7 +2,6 @@
  * Shared types for the multi-dimensional codebase analyzer.
  */
 
-import type { DependencyGraph, DependencyNode, GraphAnalysis } from '../dependency-graph.js';
 import type { CortexIgnore } from './cortexignore.js';
 
 export type AnalysisCategory =
@@ -80,9 +79,6 @@ export interface AnalysisContext {
   projectRoot: string;
   files: Map<string, string>;
   extensions: Set<string>;
-  dependencyGraph: DependencyGraph;
-  graphAnalysis: GraphAnalysis;
-  nodes: Map<string, DependencyNode>;
   stackTags: Set<string>;
   gitAvailable: boolean;
   gitLog: GitLogEntry[];

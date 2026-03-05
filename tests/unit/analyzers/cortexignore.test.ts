@@ -19,28 +19,28 @@ describe('CortexIgnore', () => {
     it('should parse simple glob patterns', () => {
       const rules = parseCortexIgnore('src/legacy/**\ndist/**');
       expect(rules).toHaveLength(2);
-      expect(rules[0]!.pattern).toBe('src/legacy/**');
-      expect(rules[0]!.ruleIds).toBeNull();
-      expect(rules[1]!.pattern).toBe('dist/**');
+      expect(rules[0]?.pattern).toBe('src/legacy/**');
+      expect(rules[0]?.ruleIds).toBeNull();
+      expect(rules[1]?.pattern).toBe('dist/**');
     });
 
     it('should parse rule-specific ignores', () => {
       const rules = parseCortexIgnore('src/legacy/** QUAL-001,QUAL-002');
       expect(rules).toHaveLength(1);
-      expect(rules[0]!.pattern).toBe('src/legacy/**');
-      expect(rules[0]!.ruleIds).toEqual(['QUAL-001', 'QUAL-002']);
+      expect(rules[0]?.pattern).toBe('src/legacy/**');
+      expect(rules[0]?.ruleIds).toEqual(['QUAL-001', 'QUAL-002']);
     });
 
     it('should skip comments and empty lines', () => {
       const rules = parseCortexIgnore('# Comment\n\nsrc/**\n  \n# Another comment');
       expect(rules).toHaveLength(1);
-      expect(rules[0]!.pattern).toBe('src/**');
+      expect(rules[0]?.pattern).toBe('src/**');
     });
 
     it('should handle single rule-specific ignore', () => {
       const rules = parseCortexIgnore('*.test.ts DOC-001');
       expect(rules).toHaveLength(1);
-      expect(rules[0]!.ruleIds).toEqual(['DOC-001']);
+      expect(rules[0]?.ruleIds).toEqual(['DOC-001']);
     });
   });
 
