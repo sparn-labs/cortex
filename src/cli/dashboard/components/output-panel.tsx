@@ -57,11 +57,14 @@ export function OutputPanel({
         Output
       </Text>
       <Box flexDirection="column">
-        {visible.map((line, i) => (
-          <Text key={`${scrollOffset + i}`} color={line.color}>
-            {line.text}
-          </Text>
-        ))}
+        {visible.map((line, i) => {
+          const key = `${scrollOffset + i}-${line.text.slice(0, 20)}`;
+          return (
+            <Text key={key} color={line.color}>
+              {line.text}
+            </Text>
+          );
+        })}
       </Box>
       {hasMore && (
         <Text color={theme.dimGray}>
