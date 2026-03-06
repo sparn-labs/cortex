@@ -4,6 +4,12 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'cli/index': 'src/cli/index.ts',
+    'daemon/index': 'src/daemon/index.ts',
+    'hooks/pre-prompt': 'src/hooks/pre-prompt.ts',
+    'hooks/post-tool-result': 'src/hooks/post-tool-result.ts',
+    'hooks/stop-docs-refresh': 'src/hooks/stop-docs-refresh.ts',
+    'mcp/index': 'src/mcp/index.ts',
+    'cli/dashboard': 'src/cli/dashboard/app.tsx',
   },
   format: ['cjs', 'esm'],
   dts: true,

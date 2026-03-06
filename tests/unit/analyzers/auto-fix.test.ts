@@ -59,10 +59,7 @@ describe('Analyzer Auto-Fix', () => {
 
     it('should remove debugger statements', () => {
       const file = join(tmpDir, 'src', 'debug.ts');
-      writeFileSync(
-        file,
-        ['function test() {', '  debugger;', '  return 42;', '}'].join('\n'),
-      );
+      writeFileSync(file, ['function test() {', '  debugger;', '  return 42;', '}'].join('\n'));
 
       const finding: AnalyzerFinding = {
         ruleId: 'QUAL-009',
@@ -155,10 +152,7 @@ describe('Analyzer Auto-Fix', () => {
 
     it('should replace SHA1 with SHA-256', () => {
       const file = join(tmpDir, 'src', 'hash.ts');
-      writeFileSync(
-        file,
-        "const h = createHash('sha1').update('test').digest('hex');\n",
-      );
+      writeFileSync(file, "const h = createHash('sha1').update('test').digest('hex');\n");
 
       const finding: AnalyzerFinding = {
         ruleId: 'SEC-003',
@@ -186,12 +180,7 @@ describe('Analyzer Auto-Fix', () => {
       const file = join(tmpDir, 'src', 'ignore.ts');
       writeFileSync(
         file,
-        [
-          'const a = 1;',
-          '// @ts-ignore',
-          'const b: any = a;',
-          'const c = 3;',
-        ].join('\n'),
+        ['const a = 1;', '// @ts-ignore', 'const b: any = a;', 'const c = 3;'].join('\n'),
       );
 
       const finding: AnalyzerFinding = {
@@ -217,10 +206,7 @@ describe('Analyzer Auto-Fix', () => {
 
     it('should remove @ts-nocheck comments', () => {
       const file = join(tmpDir, 'src', 'nocheck.ts');
-      writeFileSync(
-        file,
-        ['// @ts-nocheck', 'const x = 1;'].join('\n'),
-      );
+      writeFileSync(file, ['// @ts-nocheck', 'const x = 1;'].join('\n'));
 
       const finding: AnalyzerFinding = {
         ruleId: 'QUAL-004',
@@ -264,12 +250,7 @@ describe('Analyzer Auto-Fix', () => {
       const file = join(tmpDir, 'src', 'server.ts');
       writeFileSync(
         file,
-        [
-          "app.use(cors({",
-          "  origin: '*',",
-          "  credentials: true,",
-          "}));",
-        ].join('\n'),
+        ['app.use(cors({', "  origin: '*',", '  credentials: true,', '}));'].join('\n'),
       );
 
       const finding: AnalyzerFinding = {
@@ -324,13 +305,7 @@ describe('Analyzer Auto-Fix', () => {
 
     it('should deduplicate by ruleId + file', () => {
       const file = join(tmpDir, 'src', 'dup.ts');
-      writeFileSync(
-        file,
-        [
-          '  console.log("a");',
-          '  console.log("b");',
-        ].join('\n'),
-      );
+      writeFileSync(file, ['  console.log("a");', '  console.log("b");'].join('\n'));
 
       const findings: AnalyzerFinding[] = [
         {
@@ -362,10 +337,9 @@ describe('Analyzer Auto-Fix', () => {
     it('should collect multiple different fix types', () => {
       writeFileSync(
         join(tmpDir, 'src', 'mixed.ts'),
-        [
-          '  console.log("test");',
-          "const h = createHash('md5').update('x').digest('hex');",
-        ].join('\n'),
+        ['  console.log("test");', "const h = createHash('md5').update('x').digest('hex');"].join(
+          '\n',
+        ),
       );
 
       const findings: AnalyzerFinding[] = [

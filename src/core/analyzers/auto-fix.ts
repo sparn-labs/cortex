@@ -15,10 +15,7 @@ export interface AnalyzerFixAction {
   apply: () => boolean;
 }
 
-type FixFactory = (
-  projectRoot: string,
-  finding: AnalyzerFinding,
-) => AnalyzerFixAction | null;
+type FixFactory = (projectRoot: string, finding: AnalyzerFinding) => AnalyzerFixAction | null;
 
 const SAFE_FIXES: Record<string, FixFactory> = {
   'QUAL-009': fixDebugStatements,
@@ -73,10 +70,7 @@ function fixDebugStatements(
 /**
  * SEC-003: Replace weak crypto MD5/SHA1 → SHA-256.
  */
-function fixWeakCrypto(
-  projectRoot: string,
-  finding: AnalyzerFinding,
-): AnalyzerFixAction | null {
+function fixWeakCrypto(projectRoot: string, finding: AnalyzerFinding): AnalyzerFixAction | null {
   if (!finding.filePath) return null;
   const filePath = join(projectRoot, finding.filePath);
   if (!existsSync(filePath)) return null;
@@ -101,14 +95,8 @@ function fixWeakCrypto(
     apply: () => {
       try {
         let current = readFileSync(filePath, 'utf-8');
-        current = current.replace(
-          /createHash\s*\(\s*['"]md5['"]\s*\)/g,
-          "createHash('sha256')",
-        );
-        current = current.replace(
-          /createHash\s*\(\s*['"]sha1['"]\s*\)/g,
-          "createHash('sha256')",
-        );
+        current = current.replace(/createHash\s*\(\s*['"]md5['"]\s*\)/g, "createHash('sha256')");
+        current = current.replace(/createHash\s*\(\s*['"]sha1['"]\s*\)/g, "createHash('sha256')");
         writeFileSync(filePath, current, 'utf-8');
         return true;
       } catch {
@@ -119,7 +107,7 @@ function fixWeakCrypto(
 }
 
 /**
- * QUAL-004 (partial): Remove @ts-ignore and @ts-nocheck comments.
+ * QUAL-004 (partial): Remove @ts-expect-error and @ts-nocheck comments.
  */
 function fixTsIgnoreComments(
   projectRoot: string,
@@ -169,10 +157,7 @@ function fixTsIgnoreComments(
 /**
  * SEC-004: Replace CORS wildcard * → placeholder.
  */
-function fixCorsWildcard(
-  projectRoot: string,
-  finding: AnalyzerFinding,
-): AnalyzerFixAction | null {
+function fixCorsWildcard(projectRoot: string, finding: AnalyzerFinding): AnalyzerFixAction | null {
   if (!finding.filePath) return null;
   const filePath = join(projectRoot, finding.filePath);
   if (!existsSync(filePath)) return null;
@@ -190,10 +175,7 @@ function fixCorsWildcard(
     apply: () => {
       try {
         let current = readFileSync(filePath, 'utf-8');
-        current = current.replace(
-          /(origin\s*:\s*)['"]?\*['"]?/g,
-          "$1'https://your-domain.com'",
-        );
+        current = current.replace(/(origin\s*:\s*)['"]?\*['"]?/g, "$1'https://your-domain.com'");
         writeFileSync(filePath, current, 'utf-8');
         return true;
       } catch {
